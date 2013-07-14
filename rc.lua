@@ -1,3 +1,4 @@
+vicious = require("vicious")
 -- Standard awesome library
 require("awful")
 require("awful.autofocus")
@@ -37,11 +38,11 @@ end
 
 -- {{{ Variable definitions
 -- Themes define colours, icons, and wallpapers
-beautiful.init("/usr/share/awesome/themes/default/theme.lua")
+beautiful.init("~/.config/awesome/theme/theme.lua")
 
 -- This is used later as the default terminal and editor to run.
-terminal = "x-terminal-emulator"
-editor = os.getenv("EDITOR") or "editor"
+terminal = "rxvtc"
+editor = os.getenv("EDITOR") or "vi"
 editor_cmd = terminal .. " -e " .. editor
 
 -- Default modkey.
@@ -49,7 +50,7 @@ editor_cmd = terminal .. " -e " .. editor
 -- If you do not like this or do not have such a key,
 -- I suggest you to remap Mod4 to another key using xmodmap or other tools.
 -- However, you can use another modifier like Mod1, but it may interact with others.
-modkey = "Mod4"
+modkey = "Mod1"
 
 -- Table of layouts to cover with awful.layout.inc, order matters.
 layouts =
@@ -61,20 +62,23 @@ layouts =
     awful.layout.suit.tile.top,
     awful.layout.suit.fair,
     awful.layout.suit.fair.horizontal,
-    awful.layout.suit.spiral,
-    awful.layout.suit.spiral.dwindle,
+--  awful.layout.suit.spiral,
+--  awful.layout.suit.spiral.dwindle,
     awful.layout.suit.max,
-    awful.layout.suit.max.fullscreen,
-    awful.layout.suit.magnifier
+--  awful.layout.suit.max.fullscreen,
+--  awful.layout.suit.magnifier
 }
 -- }}}
 
 -- {{{ Tags
 -- Define a tag table which hold all screen tags.
-tags = {}
+tags = {
+  names  = { "main", "web", "term", "dev" },
+  layout = { layouts[2], layouts[1], layouts[2], layouts[4]
+}}
 for s = 1, screen.count() do
     -- Each screen has its own tag table.
-    tags[s] = awful.tag({ 1, 2, 3, 4, 5, 6, 7, 8, 9 }, s, layouts[1])
+    tags[s] = awful.tag(tags.names, s, tags.layout)
 end
 -- }}}
 
@@ -98,10 +102,61 @@ mylauncher = awful.widget.launcher({ image = image(beautiful.awesome_icon),
 -- }}}
 
 -- {{{ Wibox
--- Create a textclock widget
+
+-- Icons
+--clockicon = widget({ type = "imagebox" })
+--dnicon = widget({ type = "imagebox" })
+--upicon = widget({ type = "imagebox" })
+--memicon = widget({ type = "imagebox" })
+--thermalicon = widget({ type = "imagebox" })
+--cpuicon = widget({ type = "imagebox" }) 
+
+--clockicon.image = image(beautiful.widget_clockicon)
+--dnicon.image = image(beautiful.widget_dnicon)
+--upicon.image = image(beautiful.widget_upicon)
+--memicon.image = image(beautiful.widget_memicon)
+--thermalicon.image = image(beautiful.widget_thermalicon)
+--cpuicon.image = image(beautiful.widget_cpuicon)
+
+-- Spacer
+spacer = widget({ type = "textbox" })
+spacer.width = 5
+
+-- Seperators
+separator = widget({ type = "textbox" })
+separator.text  = " | "
+
+-- MPD widget
+mpdwidget = widget({ type = "textbox" })
+vicious.register(mpdwidget, vicious.widgets.mpd,
+    function (widget, args)
+        if args["{state}"] == "Stop" then 
+            return " - "
+        else 
+            return args["{Artist}"]..' - '.. args["{Title}"]
+        end
+    end, 10)
+
+-- Thermal widget
+thermalwidget = widget({ type = "textbox" }) 
+vicious.register(thermalwidget, vicious.widgets.thermal, "$1 C", 1, { "coretemp.0", "core" })
+
+-- Cpu  widget
+cpuwidget = widget({ type = "textbox" })
+vicious.register(cpuwidget, vicious.widgets.cpu, "$1%", 1)
+
+-- Memory widget
+memwidget = widget({ type = "textbox" })
+vicious.register(memwidget, vicious.widgets.mem, '<span color="#9b9fa4">$2MB</span>', 13)
+
+-- Network widget
+netwidget = widget({ type = "textbox" })
+vicious.register(netwidget, vicious.widgets.net, '<span color="#CC9393">${wlan0 down_kb}</span> <span color="#7F9F7F">${wlan0 up_kb}</span>', 3)
+
+-- Clock widget
 mytextclock = awful.widget.textclock({ align = "right" })
 
--- Create a systray
+-- System Tray 
 mysystray = widget({ type = "systray" })
 
 -- Create a wibox for each screen and add it
@@ -180,7 +235,24 @@ for s = 1, screen.count() do
         },
         mylayoutbox[s],
         mytextclock,
+	clockicon,
         s == 1 and mysystray or nil,
+	separator,
+--	dnicon,
+	netwidget,
+--	upicon,
+	separator,
+	memwidget,
+--	memicon,
+	separator,
+	thermalwidget,
+	spacer,
+--	thermalicon,
+	cpuwidget,
+--	cpuicon,
+	separator,
+	mpdwidget,
+	separator,
         mytasklist[s],
         layout = awful.widget.layout.horizontal.rightleft
     }
@@ -339,15 +411,17 @@ awful.rules.rules = {
       properties = { floating = true } },
     { rule = { class = "gimp" },
       properties = { floating = true } },
-    -- Set Firefox to always map on tags number 2 of screen 1.
-    -- { rule = { class = "Firefox" },
-    --   properties = { tag = tags[1][2] } },
+    { rule = { class = "Firefox" },
+      properties = { tag = tags[1][2] } },
+    { rule = { instance = "plugin-container" },
+      properties = { floating = true } },
 }
 -- }}}
 
 -- {{{ Signals
 -- Signal function to execute when a new client appears.
 client.add_signal("manage", function (c, startup)
+    c.size_hints_honor = false
     -- Add a titlebar
     -- awful.titlebar.add(c, { modkey = modkey })
 
